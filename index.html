@@ -57,12 +57,14 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbxdilkkZgl8hiF1qI_2VEw95iaoiwxTmUoZzjoEAYGB9kP1IlHwMXtL-RhCOKMIzPzG/exec';
 
     function loadData() {
+      console.log('Loading data from:', API_URL + '?action=getAll');
       fetch(API_URL + '?action=getAll')
         .then(response => response.json())
         .then(data => {
+          console.log('Response:', data);
           const tbody = document.querySelector('#data-table tbody');
           tbody.innerHTML = '';
-          if (data.success) {
+          if (data.success && data.records) {
             data.records.forEach(record => {
               const tr = document.createElement('tr');
               tr.innerHTML = `
@@ -83,8 +85,12 @@
               tbody.appendChild(tr);
             });
           } else {
-            Swal.fire('Error', data.message, 'error');
+            Swal.fire('Error', data.message || 'ไม่พบข้อมูล', 'error');
           }
+        })
+        .catch(err => {
+          console.error(err);
+          Swal.fire('Error', 'ไม่สามารถโหลดข้อมูลได้', 'error');
         });
     }
 
@@ -105,6 +111,10 @@
           } else {
             Swal.fire('Error', data.message, 'error');
           }
+        })
+        .catch(err => {
+          console.error(err);
+          Swal.fire('Error', 'ไม่สามารถอัพเดทได้', 'error');
         });
     }
 
