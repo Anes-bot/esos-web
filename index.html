@@ -1,124 +1,121 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>ESOS - Easy Submit Online System</title>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <base target="_top">
   <style>
     body {
-      background: #f5f0ff;
-      font-family: Arial, sans-serif;
+      background-color: #f6f0fb; 
+      font-family: 'Segoe UI', sans-serif;
       color: #333;
-      padding: 40px;
+      text-align: center;
+      padding: 20px;
     }
     h1 {
-      color: #6a1b9a;
+      color: #7e57c2;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
     }
     th, td {
+      padding: 12px;
       border: 1px solid #ddd;
-      padding: 8px;
     }
     th {
-      background: #e1bee7;
+      background-color: #e1bee7;
+      color: #4a148c;
     }
-    select {
-      padding: 5px;
-    }
-    button {
-      background: #ba68c8;
-      border: none;
+    select, button {
       padding: 5px 10px;
-      color: #fff;
-      cursor: pointer;
+      margin: 2px;
+    }
+    .summary {
+      margin: 20px 0;
+      padding: 10px;
+      background: #e1bee7;
+      border-radius: 10px;
+      color: #4a148c;
     }
   </style>
 </head>
 <body>
-  <h1>ระบบเช็คการส่งซ่อมสถานะออนไลน์ (ESOS)</h1>
-  <table id="data-table">
+  <h1>ระบบเช็คสถานะการส่งซ่อมออนไลน์</h1>
+  <div class="summary" id="summary"></div>
+  <table id="repairTable">
     <thead>
       <tr>
-        <th>รหัส</th>
-        <th>วันที่ส่งซ่อม</th>
-        <th>อุปกรณ์</th>
+        <th>ลำดับ</th>
+        <th>รายการ</th>
+        <th>ผู้ส่งซ่อม</th>
+        <th>วันที่</th>
         <th>สถานะ</th>
-        <th>อัพเดท</th>
+        <th>เปลี่ยนสถานะ</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwD9JVP4Xz3WJnt_9fK_g6VWu_bHdx1rGBKfWWrDH9C1MjLb2hrFFUAs3HKuT1MJ7mN/exec';
-
     function loadData() {
-      console.log('Loading data from:', API_URL + '?action=getAll');
-      fetch(API_URL + '?action=getAll')
-        .then(response => response.json())
-        .then(data => {
-          console.log('Response:', data);
-          const tbody = document.querySelector('#data-table tbody');
-          tbody.innerHTML = '';
-          if (data.success && data.records) {
-            data.records.forEach(record => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td>${record.id}</td>
-                <td>${record.date}</td>
-                <td>${record.item}</td>
-                <td>
-                  <select id="status-${record.id}">
-                    <option value="รอส่งซ่อม" ${record.status === 'รอส่งซ่อม' ? 'selected' : ''}>รอส่งซ่อม</option>
-                    <option value="ส่งซ่อมแล้ว" ${record.status === 'ส่งซ่อมแล้ว' ? 'selected' : ''}>ส่งซ่อมแล้ว</option>
-                    <option value="รออนุมัติ" ${record.status === 'รออนุมัติ' ? 'selected' : ''}>รออนุมัติ</option>
-                    <option value="เรื่องอยู่พัสดุ" ${record.status === 'เรื่องอยู่พัสดุ' ? 'selected' : ''}>เรื่องอยู่พัสดุ</option>
-                    <option value="รับของเรียบร้อย" ${record.status === 'รับของเรียบร้อย' ? 'selected' : ''}>รับของเรียบร้อย</option>
-                  </select>
-                </td>
-                <td><button onclick="updateStatus('${record.id}')">อัพเดท</button></td>
-              `;
-              tbody.appendChild(tr);
-            });
-          } else {
-            Swal.fire('Error', data.message || 'ไม่พบข้อมูล', 'error');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          Swal.fire('Error', 'ไม่สามารถโหลดข้อมูลได้', 'error');
-        });
+      google.script.run.withSuccessHandler(drawTable).getRepairData();
     }
 
-    function updateStatus(id) {
-      const status = document.getElementById(`status-${id}`).value;
-      Swal.fire({
-        title: 'กำลังบันทึก...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
-      fetch(`${API_URL}?action=updateStatus&id=${id}&status=${encodeURIComponent(status)}`)
-        .then(response => response.json())
-        .then(data => {
-          Swal.close();
-          if (data.success) {
-            Swal.fire('สำเร็จ', 'อัพเดทสถานะเรียบร้อย', 'success');
-            loadData();
-          } else {
-            Swal.fire('Error', data.message, 'error');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          Swal.fire('Error', 'ไม่สามารถอัพเดทได้', 'error');
+    function drawTable(data) {
+      const tbody = document.querySelector('#repairTable tbody');
+      tbody.innerHTML = '';
+      let summary = {
+        'รอส่งซ่อม': 0, 'ส่งซ่อมแล้ว': 0, 'รออนุมัติ': 0, 'เรื่องอยู่พัสดุ': 0, 'รับของเรียบร้อย': 0
+      };
+
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+
+        row.forEach(cell => {
+          const td = document.createElement('td');
+          td.textContent = cell;
+          tr.appendChild(td);
         });
+
+        summary[row[4]] = (summary[row[4]] || 0) + 1;
+
+        // Dropdown + ปุ่ม
+        const td = document.createElement('td');
+        const select = document.createElement('select');
+        ['รอส่งซ่อม', 'ส่งซ่อมแล้ว', 'รออนุมัติ', 'เรื่องอยู่พัสดุ', 'รับของเรียบร้อย'].forEach(s => {
+          const option = document.createElement('option');
+          option.value = s;
+          option.textContent = s;
+          if (s === row[4]) option.selected = true;
+          select.appendChild(option);
+        });
+
+        const btn = document.createElement('button');
+        btn.textContent = 'อัปเดต';
+        btn.onclick = () => {
+          google.script.run.withSuccessHandler(loadData)
+            .updateStatus(i, select.value);
+        };
+
+        td.appendChild(select);
+        td.appendChild(btn);
+        tr.appendChild(td);
+
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('summary').innerHTML = `
+        ส่งซ่อม: ${summary['ส่งซ่อมแล้ว']} | 
+        รออนุมัติ: ${summary['รออนุมัติ']} | 
+        เรื่องอยู่พัสดุ: ${summary['เรื่องอยู่พัสดุ']} | 
+        รับของเรียบร้อย: ${summary['รับของเรียบร้อย']}
+      `;
     }
 
-    loadData();
+    window.onload = loadData;
   </script>
 </body>
 </html>
